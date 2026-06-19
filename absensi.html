@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Absensi WFH</title>
+  <link rel="stylesheet" href="css/wfh.css">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <!-- face-api.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+  <style>
+    body { background: var(--clr-gray-100); }
+
+    .absensi-wrapper { min-height: 100vh; display: flex; flex-direction: column; }
+    .absensi-main { flex: 1; padding: var(--gap-md) var(--gap-md) var(--gap-xl); max-width: 720px; margin: 0 auto; width: 100%; }
+
+    .absensi-page-header {
+      background: linear-gradient(135deg, var(--clr-bamboo-deep) 0%, var(--clr-bamboo-mid) 100%);
+      padding: 20px var(--gap-md);
+      margin: calc(-1 * var(--gap-md)) calc(-1 * var(--gap-md)) var(--gap-md);
+      border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    }
+    .absensi-greeting { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; color: white; letter-spacing: 0.04em; line-height: 1.2; }
+    .absensi-meta { font-size: 0.78rem; color: rgba(255,255,255,0.6); margin-top: 4px; letter-spacing: 0.06em; }
+    .absensi-date-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 100px; padding: 4px 14px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--clr-bamboo-mist); margin-top: 10px; }
+
+    .user-info-card { background: var(--clr-white); border-radius: var(--radius-md); border: 1px solid var(--clr-gray-200); box-shadow: var(--shadow-sm); padding: var(--gap-md); margin-bottom: var(--gap-md); display: flex; align-items: center; gap: var(--gap-md); }
+    [data-theme="dark"] .user-info-card { background: var(--clr-gray-100); border-color: var(--clr-gray-200); }
+    .user-avatar-lg { width: 56px; height: 56px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--clr-bamboo-mid), var(--clr-bamboo-mist)); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; color: white; flex-shrink: 0; }
+    .user-details { flex: 1; }
+    .user-nama { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--clr-bamboo-deep); letter-spacing: 0.03em; }
+    [data-theme="dark"] .user-nama { color: var(--clr-bamboo-mist); }
+    .user-meta { font-size: 0.78rem; color: var(--clr-gray-500); margin-top: 2px; }
+    .user-nik  { font-family: var(--font-mono); font-size: 0.82rem; color: var(--clr-bamboo-light); margin-top: 4px; }
+
+    .section-label { font-family: var(--font-display); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clr-gray-500); margin-bottom: 10px; }
+
+    .today-status { background: var(--clr-white); border-radius: var(--radius-md); border: 1px solid var(--clr-gray-200); padding: var(--gap-md); margin-bottom: var(--gap-md); }
+    [data-theme="dark"] .today-status { background: var(--clr-gray-100); border-color: var(--clr-gray-200); }
+    .today-status-title { font-family: var(--font-display); font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clr-gray-500); margin-bottom: 10px; }
+    .today-status-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .today-status-item { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--clr-gray-700); }
+
+    .absen-type-section { margin-bottom: var(--gap-md); }
+    .absen-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .absen-type-card { border: 2px solid var(--clr-gray-200); border-radius: var(--radius-md); padding: 16px; cursor: pointer; text-align: center; transition: all 0.15s; background: var(--clr-white); position: relative; overflow: hidden; }
+    [data-theme="dark"] .absen-type-card { background: var(--clr-gray-100); border-color: var(--clr-gray-200); }
+    .absen-type-card:hover { border-color: var(--clr-bamboo-light); box-shadow: var(--shadow-sm); }
+    .absen-type-card.selected { border-color: var(--clr-bamboo-mid); background: var(--clr-bamboo-cream); box-shadow: 0 0 0 3px rgba(64,145,108,0.15); }
+    [data-theme="dark"] .absen-type-card.selected { background: rgba(45,106,79,0.15); }
+    .absen-type-icon { font-size: 1.8rem; margin-bottom: 6px; }
+    .absen-type-name { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clr-gray-700); }
+    .absen-type-card.selected .absen-type-name { color: var(--clr-bamboo-mid); }
+    .absen-type-check { position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; border-radius: 50%; background: var(--clr-bamboo-mid); display: none; align-items: center; justify-content: center; font-size: 0.7rem; color: white; }
+    .absen-type-card.selected .absen-type-check { display: flex; }
+
+    .validation-list { background: var(--clr-white); border-radius: var(--radius-md); border: 1px solid var(--clr-gray-200); padding: var(--gap-md); margin-bottom: var(--gap-md); }
+    [data-theme="dark"] .validation-list { background: var(--clr-gray-100); border-color: var(--clr-gray-200); }
+    .validation-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--clr-gray-100); font-size: 0.85rem; }
+    .validation-item:last-child { border-bottom: none; }
+    .v-icon { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; transition: all 0.3s; }
+    .v-icon.pending { background: var(--clr-gray-200); color: var(--clr-gray-500); }
+    .v-icon.ok      { background: rgba(46,125,50,0.15); color: var(--clr-success); }
+    .v-icon.error   { background: rgba(198,40,40,0.12); color: var(--clr-danger); }
+    .v-icon.loading { background: rgba(201,168,76,0.15); color: var(--clr-gold); }
+
+    /* ── MAPS ── */
+    .maps-section { background: var(--clr-white); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-md); border: 1px solid var(--clr-gray-200); margin-bottom: var(--gap-md); }
+    [data-theme="dark"] .maps-section { background: var(--clr-gray-100); border-color: var(--clr-gray-200); }
+    .maps-header { background: linear-gradient(135deg, #0D3B2A, #1B5E3B); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+    .maps-header-title { font-family: var(--font-display); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: white; display: flex; align-items: center; gap: 8px; }
+    .gps-status-chip { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 100px; font-family: var(--font-display); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; transition: all 0.3s; }
+    .gps-status-chip.searching { background: rgba(255,152,0,0.2); border: 1px solid rgba(255,152,0,0.4); color: #FFB74D; }
+    .gps-status-chip.found     { background: rgba(76,175,80,0.2); border: 1px solid rgba(76,175,80,0.4); color: #81C784; }
+    .gps-status-chip.error     { background: rgba(198,40,40,0.2); border: 1px solid rgba(198,40,40,0.4); color: #EF9A9A; }
+    .maps-body { padding: 16px; }
+    #mini-map { width: 100%; height: 220px; border-radius: var(--radius-md); border: 1px solid var(--clr-gray-200); margin-bottom: 12px; background: var(--clr-gray-100); overflow: hidden; }
+    .gps-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .gps-info-item { background: var(--clr-gray-100); border-radius: var(--radius-sm); padding: 10px 12px; border: 1px solid var(--clr-gray-200); }
+    [data-theme="dark"] .gps-info-item { background: var(--clr-gray-200); border-color: var(--clr-gray-300); }
+    .gps-info-label { font-family: var(--font-display); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--clr-gray-500); margin-bottom: 3px; }
+    .gps-info-value { font-family: var(--font-mono); font-size: 0.82rem; color: var(--clr-gray-900); word-break: break-all; }
+    .lokasi-full-wrap { background: var(--clr-bamboo-cream); border: 1px solid var(--clr-bamboo-pale); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; }
+    [data-theme="dark"] .lokasi-full-wrap { background: rgba(45,106,79,0.1); border-color: rgba(45,106,79,0.3); }
+    .lokasi-full-label { font-family: var(--font-display); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--clr-bamboo-mid); margin-bottom: 4px; }
+    .lokasi-full-text { font-size: 0.82rem; color: var(--clr-gray-700); line-height: 1.5; }
+    .accuracy-bar-wrap { margin-top: 6px; }
+    .accuracy-bar-label { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-display); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--clr-gray-500); margin-bottom: 4px; }
+    .accuracy-bar { height: 6px; background: var(--clr-gray-200); border-radius: 3px; overflow: hidden; }
+    .accuracy-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease, background-color 0.3s; width: 0%; }
+
+    /* ── CAMERA ── */
+    .camera-section { background: var(--clr-white); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-md); border: 1px solid var(--clr-gray-200); margin-bottom: var(--gap-md); }
+    [data-theme="dark"] .camera-section { background: var(--clr-gray-100); border-color: var(--clr-gray-200); }
+    .camera-header { background: linear-gradient(135deg, var(--clr-bamboo-deep), var(--clr-bamboo-mid)); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .camera-header-title { font-family: var(--font-display); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: white; display: flex; align-items: center; gap: 8px; }
+    .camera-body { padding: 20px; }
+    .camera-frame-wrap { position: relative; width: 100%; max-width: 340px; margin: 0 auto 16px; aspect-ratio: 3/4; border-radius: var(--radius-lg); overflow: hidden; background: #000; box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+    #camera-video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+    .scan-frame { position: absolute; inset: 0; pointer-events: none; }
+    .scan-corner { position: absolute; width: 28px; height: 28px; border-color: var(--clr-bamboo-mist); border-style: solid; border-width: 0; }
+    .scan-corner.tl { top: 16px; left: 16px; border-top-width: 3px; border-left-width: 3px; border-radius: 4px 0 0 0; }
+    .scan-corner.tr { top: 16px; right: 16px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 4px 0 0; }
+    .scan-corner.bl { bottom: 16px; left: 16px; border-bottom-width: 3px; border-left-width: 3px; border-radius: 0 0 0 4px; }
+    .scan-corner.br { bottom: 16px; right: 16px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 4px 0; }
+    .scan-line { position: absolute; left: 16px; right: 16px; height: 2px; background: linear-gradient(90deg, transparent, var(--clr-bamboo-mist), transparent); box-shadow: 0 0 8px var(--clr-bamboo-mist); animation: scanline 2.5s ease-in-out infinite; opacity: 0; }
+    @keyframes scanline { 0%{top:20%;opacity:0;} 10%{opacity:1;} 90%{opacity:0.8;} 100%{top:80%;opacity:0;} }
+    .scan-line.active { opacity: 1; }
+    #face-canvas { position: absolute; inset: 0; pointer-events: none; transform: scaleX(-1); }
+    .camera-status-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .face-indicator { display: flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 100px; font-family: var(--font-display); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; transition: all 0.3s; }
+    .face-indicator.detecting    { background: rgba(255,152,0,0.2); border: 1px solid rgba(255,152,0,0.5); color: #FFB74D; }
+    .face-indicator.detected     { background: rgba(46,125,50,0.25); border: 1px solid rgba(76,175,80,0.5); color: #81C784; }
+    .face-indicator.not-detected { background: rgba(198,40,40,0.2); border: 1px solid rgba(198,40,40,0.4); color: #EF9A9A; }
+    .face-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulseface 1s infinite; }
+    @keyframes pulseface { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+    .capture-flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; border-radius: var(--radius-lg); transition: opacity 0.05s; }
+    .capture-flash.flash { opacity: 1; }
+    .camera-init-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: white; border-radius: var(--radius-lg); text-align: center; padding: 20px; }
+    .camera-init-icon { font-size: 2.5rem; }
+    .camera-init-text { font-family: var(--font-display); font-size: 0.85rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.8); }
+    .photo-preview-wrap { display: none; flex-direction: column; align-items: center; gap: 12px; margin: 16px 0; }
+    #photo-preview { width: 100%; max-width: 340px; aspect-ratio: 3/4; object-fit: cover; border-radius: var(--radius-lg); box-shadow: 0 8px 30px rgba(0,0,0,0.25); border: 3px solid var(--clr-bamboo-mist); }
+    .model-loading-bar { width: 100%; height: 4px; background: var(--clr-gray-200); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+    .model-loading-fill { height: 100%; background: linear-gradient(90deg, var(--clr-bamboo-mid), var(--clr-bamboo-mist)); border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+    .model-status-text { font-family: var(--font-display); font-size: 0.7rem; letter-spacing: 0.1em; color: var(--clr-gray-500); text-align: center; }
+    .camera-controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+
+    /* ── SUBMIT BUTTON ── */
+    .btn-absen-submit {
+      width: 100%; padding: 20px;
+      background: linear-gradient(135deg, var(--clr-bamboo-deep) 0%, var(--clr-bamboo-mid) 50%, var(--clr-bamboo-light) 100%);
+      border: none; border-radius: var(--radius-lg); color: white;
+      font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+      cursor: pointer; position: relative; overflow: hidden; transition: all 0.3s;
+      box-shadow: 0 8px 30px rgba(27,67,50,0.4); margin-top: var(--gap-md);
+    }
+    .btn-absen-submit:hover { box-shadow: 0 12px 40px rgba(27,67,50,0.55); transform: translateY(-2px); }
+    .btn-absen-submit:active { transform: scale(0.98); }
+    .btn-absen-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-absen-inner { display: flex; align-items: center; justify-content: center; gap: 12px; }
+
+    /* Success overlay */
+    .success-overlay { position: fixed; inset: 0; background: rgba(27,67,50,0.92); z-index: 500; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; padding: var(--gap-lg); }
+    .success-overlay.show { display: flex; animation: fadeIn 0.4s ease; }
+    .success-check { width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 3px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 3rem; animation: popinx 0.5s 0.2s cubic-bezier(0.34,1.56,0.64,1) both; }
+    @keyframes popinx { from{transform:scale(0);} to{transform:scale(1);} }
+    .success-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: white; letter-spacing: 0.1em; }
+    .success-detail { font-size: 0.9rem; color: rgba(255,255,255,0.7); line-height: 1.8; }
+    .success-time { font-family: var(--font-mono); font-size: 2rem; color: var(--clr-bamboo-mist); letter-spacing: 0.15em; }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="success-overlay">
+  <div class="success-check">✓</div>
+  <div class="success-time" id="success-time">--:--:--</div>
+  <div class="success-title">ABSENSI BERHASIL</div>
+  <div class="success-detail" id="success-detail">Data absensi Anda telah tersimpan.</div>
+  <div style="font-family:var(--font-body);font-size:0.8rem;color:rgba(116,198,157,0.5);letter-spacing:0.2em;">勤怠管理システム · 記録済み</div>
+  <button class="btn btn-secondary" style="color:white;border-color:rgba(255,255,255,0.3);" onclick="resetAbsensi()">Kembali</button>
+</div>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <div class="header-logo-text">
+        <span class="header-logo-title">WFH SYSTEM</span>
+        <span class="header-logo-subtitle">Attendance · 在宅勤務</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="digital-clock" id="digital-clock">00:00:00</div>
+      <button class="dark-toggle" id="dark-toggle" onclick="DarkMode.toggle()">🌙</button>
+      <div class="user-chip" id="header-user-chip">
+        <div class="user-avatar" id="header-avatar">?</div>
+        <span class="user-name" id="header-name">...</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.2);" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+</header>
+
+<div class="absensi-wrapper">
+  <div class="absensi-main">
+
+    <div class="absensi-page-header">
+      <div class="absensi-greeting" id="page-greeting">Selamat Datang 👋</div>
+      <div class="absensi-meta">Silakan lengkapi absensi WFH Anda hari ini</div>
+      <div class="absensi-date-chip"><span>📅</span><span id="absensi-date-display">—</span></div>
+    </div>
+
+    <div class="user-info-card">
+      <div class="user-avatar-lg" id="user-avatar-lg">?</div>
+      <div class="user-details">
+        <div class="user-nama" id="user-nama-display">—</div>
+        <div class="user-meta" id="user-dept-display">—</div>
+        <div class="user-nik" id="user-nik-display">NIK: —</div>
+      </div>
+      <div class="badge badge-success">● AKTIF</div>
+    </div>
+
+    <div class="today-status" id="today-status-wrap">
+      <div class="today-status-title">Status Absensi Hari Ini</div>
+      <div class="today-status-row" id="today-status-row">
+        <div class="spinner spinner-sm"></div>
+        <span style="font-size:0.8rem;color:var(--clr-gray-500);">Memuat...</span>
+      </div>
+    </div>
+
+    <div class="absen-type-section">
+      <div class="section-label">Pilih Jenis Absensi</div>
+      <div class="absen-type-grid">
+        <div class="absen-type-card selected" id="type-masuk" onclick="selectType('Masuk')">
+          <div class="absen-type-check">✓</div>
+          <div class="absen-type-icon">🌅</div>
+          <div class="absen-type-name">Masuk</div>
+        </div>
+        <div class="absen-type-card" id="type-pulang" onclick="selectType('Pulang')">
+          <div class="absen-type-check">✓</div>
+          <div class="absen-type-icon">🌆</div>
+          <div class="absen-type-name">Pulang</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="validation-list">
+      <div class="section-label" style="margin-bottom:0;">Status Verifikasi</div>
+      <div class="validation-item"><div class="v-icon pending" id="v-gps">📡</div><span id="v-gps-text">GPS — Menunggu...</span></div>
+      <div class="validation-item"><div class="v-icon pending" id="v-camera">📷</div><span id="v-camera-text">Kamera — Menunggu...</span></div>
+      <div class="validation-item"><div class="v-icon pending" id="v-face">👤</div><span id="v-face-text">Deteksi Wajah — Menunggu...</span></div>
+      <div class="validation-item"><div class="v-icon pending" id="v-photo">🖼️</div><span id="v-photo-text">Foto — Belum diambil</span></div>
+    </div>
+
+    <!-- MAPS -->
+    <div class="maps-section">
+      <div class="maps-header">
+        <div class="maps-header-title">📍 LOKASI GPS <span style="font-family:var(--font-body);font-size:0.68rem;opacity:0.5;margin-left:4px;">位置情報</span></div>
+        <div class="gps-status-chip searching" id="gps-status-chip">📡 MENCARI...</div>
+      </div>
+      <div class="maps-body">
+        <div id="mini-map"></div>
+        <div class="gps-info-grid">
+          <div class="gps-info-item"><div class="gps-info-label">Latitude</div><div class="gps-info-value" id="gps-lat">—</div></div>
+          <div class="gps-info-item"><div class="gps-info-label">Longitude</div><div class="gps-info-value" id="gps-lng">—</div></div>
+        </div>
+        <div class="lokasi-full-wrap">
+          <div class="lokasi-full-label">📌 Alamat Terdeteksi</div>
+          <div class="lokasi-full-text" id="lokasi-full-text">Mengambil alamat...</div>
+        </div>
+        <div class="accuracy-bar-wrap">
+          <div class="accuracy-bar-label"><span>Akurasi GPS</span><span id="accuracy-label" style="color:var(--clr-bamboo-mid);">—</span></div>
+          <div class="accuracy-bar"><div class="accuracy-fill" id="accuracy-fill"></div></div>
+          <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--clr-gray-500);margin-top:4px;" id="gps-acc">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAMERA -->
+    <div class="camera-section">
+      <div class="camera-header">
+        <div class="camera-header-title">📷 SELFIE VERIFICATION <span style="font-family:var(--font-body);font-size:0.7rem;opacity:0.55;margin-left:4px;">在席確認</span></div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="online-dot"></div>
+          <span style="font-size:0.65rem;color:rgba(255,255,255,0.5);font-family:var(--font-display);letter-spacing:0.1em;">LIVE</span>
+        </div>
+      </div>
+      <div class="camera-body">
+        <div id="model-status-wrap" style="margin-bottom:12px;">
+          <div class="model-loading-bar"><div class="model-loading-fill" id="model-loading-fill"></div></div>
+          <div class="model-status-text" id="model-status-text">Memuat sistem AI...</div>
+        </div>
+        <div class="camera-frame-wrap" id="camera-frame-wrap">
+          <video id="camera-video" autoplay muted playsinline></video>
+          <canvas id="face-canvas"></canvas>
+          <div class="scan-frame">
+            <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+            <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+            <div class="scan-line" id="scan-line"></div>
+          </div>
+          <div class="camera-status-overlay">
+            <div class="face-indicator detecting" id="face-indicator"><span class="face-dot"></span>MENDETEKSI...</div>
+          </div>
+          <div class="camera-init-overlay" id="camera-init-overlay">
+            <div class="camera-init-icon">📷</div>
+            <div class="camera-init-text">Mengaktifkan kamera selfie...</div>
+            <div class="spinner spinner-sm"></div>
+          </div>
+          <div class="capture-flash" id="capture-flash"></div>
+        </div>
+        <div class="photo-preview-wrap" id="photo-preview-wrap">
+          <img id="photo-preview" alt="Foto selfie">
+          <div class="badge badge-success">✓ Foto berhasil diambil</div>
+        </div>
+        <canvas id="photo-canvas" style="display:none;"></canvas>
+        <div class="camera-controls">
+          <button class="btn btn-primary" id="btn-capture" onclick="handleCapture()">📸 Ambil Selfie</button>
+          <button class="btn btn-secondary" id="btn-retake" style="display:none;" onclick="handleRetake()">🔄 Ulangi</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-absen-submit" id="btn-submit" onclick="submitAbsensi()" disabled>
+      <div class="btn-absen-inner">
+        <span>✅</span>
+        <span id="btn-submit-text">KIRIM ABSENSI</span>
+        <span id="btn-submit-spinner" style="display:none;"><div class="spinner spinner-sm" style="border-top-color:white;border-color:rgba(255,255,255,0.3);"></div></span>
+      </div>
+    </button>
+
+  </div>
+</div>
+
+<!-- JS -->
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/maps.js"></script>
+<script>
+var currentUser  = null;
+var selectedType = 'Masuk';
+var gpsReady     = false;
+var photoReady   = false;
+
+window.addEventListener('DOMContentLoaded', function () {
+  currentUser = Session.load();
+  if (!currentUser) { navigateTo('login'); return; }
+
+  startDigitalClock('digital-clock');
+  populateUserInfo();
+  loadTodayStatus();
+  initGPS();
+  setTimeout(function () { CameraModule.init(); }, 400);
+});
+
+function populateUserInfo() {
+  var u = currentUser;
+  var initial  = u.nama ? u.nama.charAt(0).toUpperCase() : '?';
+  var today    = new Date();
+  var hour     = today.getHours();
+  var greeting = hour < 11 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam';
+
+  document.getElementById('page-greeting').textContent     = greeting + ', ' + u.nama + ' 👋';
+  document.getElementById('user-nama-display').textContent = u.nama || '—';
+  document.getElementById('user-dept-display').textContent = (u.department || '—') + ' · ' + (u.jabatan || '—');
+  document.getElementById('user-nik-display').textContent  = 'NIK: ' + (u.nik || '—');
+  document.getElementById('user-avatar-lg').textContent     = initial;
+  document.getElementById('header-name').textContent        = u.nama || '—';
+  document.getElementById('header-avatar').textContent      = initial;
+
+  document.getElementById('absensi-date-display').textContent =
+    today.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+async function loadTodayStatus() {
+  var row = document.getElementById('today-status-row');
+  try {
+    var result = await API.getHistoriKaryawan(currentUser.nik);
+    if (!result.success || !result.data) {
+      row.innerHTML = '<span style="font-size:0.8rem;color:var(--clr-gray-500);">Belum ada absensi hari ini.</span>';
+      return;
+    }
+    var today = new Date().toISOString().slice(0, 10);
+    var todayRecords = result.data.filter(function (r) { return String(r.tanggal) === today; });
+    if (!todayRecords.length) {
+      row.innerHTML = '<span style="font-size:0.82rem;color:var(--clr-gray-500);">📋 Belum ada absensi hari ini.</span>';
+    } else {
+      row.innerHTML = todayRecords.map(function (r) {
+        return '<div class="today-status-item"><span>' + (r.jenisAbsen === 'Masuk' ? '🌅' : '🌆') +
+          '</span><span><b>' + r.jenisAbsen + '</b> — ' + r.jam + '</span><span class="badge badge-success">✓</span></div>';
+      }).join('');
+    }
+  } catch (e) {
+    row.innerHTML = '<span style="font-size:0.8rem;color:var(--clr-gray-500);">Gagal memuat status. Cek koneksi API.</span>';
+  }
+}
+
+function selectType(type) {
+  selectedType = type;
+  document.getElementById('type-masuk').classList.toggle('selected', type === 'Masuk');
+  document.getElementById('type-pulang').classList.toggle('selected', type === 'Pulang');
+}
+
+async function initGPS() {
+  setValidation('gps', 'loading', '📡 Mengambil lokasi GPS...');
+  MapsModule.initMap();
+  try {
+    await MapsModule.getLocation();
+    gpsReady = true;
+    setValidation('gps', 'ok', '✓ GPS — ±' + MapsModule.getAcc() + 'm');
+    checkReadiness();
+  } catch (err) {
+    setValidation('gps', 'error', '✗ GPS — ' + err.message);
+    Toast.error('GPS Error: ' + err.message);
+  }
+}
+
+async function handleCapture() {
+  if (!CameraModule.isFaceOK()) { Toast.error('Posisikan wajah Anda di depan kamera terlebih dahulu.'); return; }
+  var b64 = CameraModule.capture();
+  if (b64) {
+    photoReady = true;
+    document.getElementById('btn-capture').style.display = 'none';
+    document.getElementById('btn-retake').style.display  = 'inline-flex';
+    setValidation('camera', 'ok', '✓ Kamera — Aktif');
+    setValidation('face',   'ok', '✓ Wajah — Terdeteksi');
+    setValidation('photo',  'ok', '✓ Foto — Berhasil diambil');
+    checkReadiness();
+    Toast.success('Selfie berhasil! Silakan kirim absensi.');
+  }
+}
+
+function handleRetake() {
+  photoReady = false;
+  document.getElementById('btn-capture').style.display = 'inline-flex';
+  document.getElementById('btn-retake').style.display  = 'none';
+  setValidation('photo', 'pending', '🖼️ Foto — Belum diambil');
+  setValidation('face',  'pending', '👤 Wajah — Menunggu...');
+  checkReadiness();
+  CameraModule.retake();
+}
+
+function setValidation(key, state, text) {
+  var icon = document.getElementById('v-' + key);
+  var txt  = document.getElementById('v-' + key + '-text');
+  if (icon) icon.className = 'v-icon ' + state;
+  if (txt)  txt.textContent = text;
+}
+
+function checkReadiness() {
+  var ready = gpsReady && photoReady;
+  document.getElementById('btn-submit').disabled = !ready;
+}
+
+async function submitAbsensi() {
+  if (!gpsReady)   { Toast.error('GPS belum siap.'); return; }
+  if (!photoReady) { Toast.error('Foto belum diambil.'); return; }
+
+  var btn       = document.getElementById('btn-submit');
+  var btnText   = document.getElementById('btn-submit-text');
+  var spinner   = document.getElementById('btn-submit-spinner');
+
+  btn.disabled = true;
+  btnText.textContent = 'MENGIRIM...';
+  spinner.style.display = 'inline-block';
+
+  var absensiData = {
+    nik          : currentUser.nik,
+    nama         : currentUser.nama,
+    department   : currentUser.department,
+    cg           : currentUser.cg,
+    jabatan      : currentUser.jabatan,
+    jenisAbsen   : selectedType,
+    latitude     : MapsModule.getLat(),
+    longitude    : MapsModule.getLng(),
+    lokasiLengkap: MapsModule.getLokasi(),
+    akurasiGPS   : MapsModule.getAcc(),
+    fotoBase64   : CameraModule.getBase64(),
+    statusSelfie : CameraModule.isFaceOK() ? 'Terdeteksi' : 'Manual',
+    statusGPS    : 'Valid',
+    device       : navigator.platform || 'Unknown',
+    browser      : navigator.userAgent.substring(0, 100),
+  };
+
+  try {
+    var result = await API.simpanAbsensi(absensiData);
+    if (result.success) {
+      CameraModule.stop();
+      showSuccess(result.tanggal, result.jam, result.linkFoto);
+      loadTodayStatus();
+    } else {
+      Toast.error(result.message || 'Gagal menyimpan absensi.');
+      btn.disabled = false;
+      btnText.textContent = 'KIRIM ABSENSI';
+      spinner.style.display = 'none';
+    }
+  } catch (err) {
+    Toast.error('Koneksi ke server gagal: ' + err.message);
+    btn.disabled = false;
+    btnText.textContent = 'KIRIM ABSENSI';
+    spinner.style.display = 'none';
+  }
+}
+
+function showSuccess(tanggal, jam, linkFoto) {
+  var overlay = document.getElementById('success-overlay');
+  document.getElementById('success-time').textContent = jam;
+  document.getElementById('success-detail').innerHTML =
+    '<b>' + selectedType + '</b> berhasil tercatat<br>' + tanggal + ' · ' + jam + '<br>' +
+    '<span style="font-size:0.8rem;">' + currentUser.nama + ' — ' + currentUser.department + '</span>' +
+    (linkFoto && linkFoto.indexOf('gagal') === -1
+      ? '<br><a href="' + linkFoto + '" target="_blank" style="color:var(--clr-bamboo-mist);font-size:0.8rem;">📷 Lihat Foto</a>'
+      : '');
+  overlay.classList.add('show');
+}
+
+function resetAbsensi() {
+  document.getElementById('success-overlay').classList.remove('show');
+  photoReady = false;
+  document.getElementById('btn-submit').disabled = true;
+  document.getElementById('btn-submit-text').textContent = 'KIRIM ABSENSI';
+  document.getElementById('btn-capture').style.display = 'inline-flex';
+  document.getElementById('btn-retake').style.display  = 'none';
+  setValidation('camera', 'pending', '📷 Kamera — Menunggu...');
+  setValidation('face',   'pending', '👤 Wajah — Menunggu...');
+  setValidation('photo',  'pending', '🖼️ Foto — Belum diambil');
+  CameraModule.retake();
+}
+
+function doLogout() {
+  CameraModule.stop();
+  Session.clear();
+  navigateTo('login');
+}
+</script>
+</body>
+</html>

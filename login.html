@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Login — WFH Attendance System</title>
+  <link rel="stylesheet" href="css/wfh.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0A2E1C;
+      overflow: hidden;
+    }
+    #bg-canvas { position: fixed; inset: 0; z-index: 0; }
+    .mist-1 {
+      position: fixed; inset: 0; z-index: 1;
+      background: radial-gradient(ellipse at 30% 60%, rgba(116,198,157,0.08) 0%, transparent 65%),
+                  radial-gradient(ellipse at 80% 20%, rgba(45,106,79,0.10) 0%, transparent 55%);
+      animation: mistmove 10s ease-in-out infinite alternate;
+    }
+    .mist-2 {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 40%; z-index: 1;
+      background: linear-gradient(to top, rgba(10,46,28,0.7) 0%, transparent 100%);
+    }
+    @keyframes mistmove {
+      0%   { transform: scale(1)    translateX(0); }
+      100% { transform: scale(1.05) translateX(20px); }
+    }
+    /* Leaf particles */
+    .leaf { position: fixed; pointer-events: none; z-index: 2; opacity: 0;
+      animation: leaffall var(--dur,7s) var(--delay,0s) linear infinite; }
+    @keyframes leaffall {
+      0%   { opacity: 0;   top: -5%;   transform: rotate(0deg)   translateX(0); }
+      10%  { opacity: 0.6; }
+      90%  { opacity: 0.3; }
+      100% { opacity: 0;   top: 105%;  transform: rotate(720deg) translateX(var(--drift,30px)); }
+    }
+    /* Splash */
+    #splash {
+      position: fixed; inset: 0; z-index: 500;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+      background: linear-gradient(160deg,#071C10 0%,#0F2B1E 40%,#1B4332 100%);
+    }
+    .splash-icon { font-size: 3rem; animation: popin 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards; opacity: 0; }
+    .splash-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; color: white; letter-spacing: 0.15em; animation: popin 0.8s 0.25s cubic-bezier(0.34,1.56,0.64,1) forwards; opacity: 0; }
+    .splash-sub   { font-size: 0.72rem; color: var(--clr-bamboo-mist); letter-spacing: 0.25em; text-transform: uppercase; animation: popin 0.8s 0.45s forwards; opacity: 0; }
+    .splash-jp    { font-size: 0.78rem; color: rgba(116,198,157,0.4); letter-spacing: 0.3em; animation: popin 0.8s 0.6s forwards; opacity: 0; }
+    .splash-bar   { width: 160px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; animation: popin 0.8s 0.65s forwards; opacity: 0; }
+    .splash-fill  { height: 100%; background: linear-gradient(90deg, var(--clr-bamboo-mid), var(--clr-bamboo-mist)); border-radius: 10px; animation: barload 2.2s 0.8s ease-in-out forwards; width: 0; }
+    @keyframes popin  { from { opacity: 0; transform: scale(0.7) translateY(16px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    @keyframes barload { 0% { width: 0; } 80% { width: 90%; } 100% { width: 100%; } }
+    /* Login card */
+    .login-wrap { position: relative; z-index: 10; width: 100%; max-width: 420px; padding: 16px; }
+    .login-card {
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+      overflow: hidden;
+      position: relative;
+    }
+    .corner-mark {
+      position: absolute; top: 0; right: 0; width: 70px; height: 70px;
+      border-top: 2px solid rgba(116,198,157,0.2); border-right: 2px solid rgba(116,198,157,0.2);
+      border-radius: 0 24px 0 0; pointer-events: none;
+    }
+    .login-head {
+      padding: 28px 28px 20px; text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.15);
+    }
+    .login-logo-icon { font-size: 2.8rem; margin-bottom: 12px; display: block; }
+    .login-app-title { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: white; letter-spacing: 0.1em; line-height: 1.2; }
+    .login-app-sub   { font-size: 0.68rem; color: var(--clr-bamboo-mist); letter-spacing: 0.2em; text-transform: uppercase; margin-top: 4px; }
+    .login-jp-badge  { display: inline-block; margin-top: 10px; padding: 2px 14px; border: 1px solid rgba(116,198,157,0.25); border-radius: 100px; font-size: 0.62rem; letter-spacing: 0.18em; color: rgba(116,198,157,0.55); }
+    .login-body { padding: 24px 28px 28px; }
+    .login-welcome { font-family: var(--font-display); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--clr-bamboo-mist); margin-bottom: 18px; }
+    .login-label  { font-family: var(--font-display); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(116,198,157,0.8); margin-bottom: 7px; display: block; }
+    .login-input-wrap { position: relative; margin-bottom: 18px; }
+    .login-input {
+      width: 100%; padding: 14px 48px 14px 16px;
+      background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.15);
+      border-radius: 12px; color: white;
+      font-family: var(--font-mono); font-size: 1.15rem; letter-spacing: 0.2em;
+      outline: none; transition: all 0.2s; caret-color: var(--clr-bamboo-mist);
+    }
+    .login-input:focus { border-color: rgba(116,198,157,0.5); background: rgba(255,255,255,0.1); box-shadow: 0 0 0 3px rgba(116,198,157,0.1); }
+    .login-input::placeholder { color: rgba(255,255,255,0.22); font-size: 0.82rem; letter-spacing: 0.08em; }
+    .input-icon-r { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: rgba(116,198,157,0.45); }
+    .remember-row { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+    .remember-row input[type=checkbox] { accent-color: var(--clr-bamboo-mist); width: 15px; height: 15px; cursor: pointer; }
+    .remember-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); cursor: pointer; }
+    .btn-login {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, var(--clr-bamboo-mid), var(--clr-bamboo-light));
+      border: none; border-radius: 12px; color: white;
+      font-family: var(--font-display); font-size: 1rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: all 0.2s; box-shadow: 0 6px 20px rgba(45,106,79,0.4);
+    }
+    .btn-login:hover { box-shadow: 0 8px 28px rgba(45,106,79,0.55); transform: translateY(-1px); }
+    .btn-login:active { transform: scale(0.98); }
+    .btn-login:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .btn-login-inner { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .error-box { background: rgba(198,40,40,0.15); border: 1px solid rgba(198,40,40,0.3); border-radius: 8px; color: #FFB3B3; font-size: 0.82rem; padding: 10px 14px; margin-top: 14px; display: none; align-items: center; gap: 8px; }
+    .login-foot { text-align: center; margin-top: 18px; font-size: 0.68rem; color: rgba(255,255,255,0.18); }
+    .nature-bar { display: flex; align-items: center; justify-content: center; gap: 10px; color: rgba(116,198,157,0.35); font-size: 0.65rem; letter-spacing: 0.08em; margin-top: 6px; }
+    .nb-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(116,198,157,0.25); }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="mist-1"></div>
+<div class="mist-2"></div>
+
+<!-- Leaf particles -->
+<span class="leaf" style="left:5%;  font-size:16px; --dur:7s;  --delay:0s;   --drift:30px;">🍃</span>
+<span class="leaf" style="left:20%; font-size:12px; --dur:9s;  --delay:1.5s; --drift:-20px;">🍃</span>
+<span class="leaf" style="left:40%; font-size:10px; --dur:8s;  --delay:3s;   --drift:45px;">🌿</span>
+<span class="leaf" style="left:65%; font-size:14px; --dur:11s; --delay:0.8s; --drift:-35px;">🍃</span>
+<span class="leaf" style="left:85%; font-size:11px; --dur:7.5s;--delay:2s;   --drift:28px;">🌿</span>
+
+<!-- SPLASH -->
+<div id="splash">
+  <span class="splash-icon">🏭</span>
+  <div class="splash-title">WFH ATTENDANCE</div>
+  <div class="splash-sub">Smart Manufacturing System</div>
+  <div class="splash-jp">在宅勤務システム</div>
+  <div class="splash-bar"><div class="splash-fill"></div></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<!-- LOGIN CARD -->
+<div class="login-wrap">
+  <div class="login-card" id="login-card">
+    <div class="corner-mark"></div>
+    <div class="login-head">
+      <span class="login-logo-icon">🏭</span>
+      <div class="login-app-title">WFH ATTENDANCE SYSTEM</div>
+      <div class="login-app-sub">Secondary Work From Home · Manufacturing</div>
+      <div class="login-jp-badge">在宅勤務 · スマートシステム</div>
+    </div>
+    <div class="login-body">
+      <div class="login-welcome">Selamat datang — silakan login</div>
+      <label class="login-label" for="nik-input">Nomor Induk Karyawan (NIK)</label>
+      <div class="login-input-wrap">
+        <input type="text" id="nik-input" class="login-input"
+          placeholder="Masukkan NIK Anda"
+          maxlength="20" autocomplete="off" spellcheck="false" inputmode="numeric">
+        <span class="input-icon-r">🪪</span>
+      </div>
+      <div class="remember-row">
+        <input type="checkbox" id="remember-me">
+        <label class="remember-label" for="remember-me">Ingat sesi di perangkat ini</label>
+      </div>
+      <button class="btn-login" id="login-btn" onclick="doLogin()">
+        <div class="btn-login-inner">
+          <div class="spinner spinner-sm" id="login-spinner" style="display:none;border-top-color:white;border-color:rgba(255,255,255,0.3);"></div>
+          <span id="login-text">LOGIN</span>
+        </div>
+      </button>
+      <div class="error-box" id="error-box">
+        <span>⚠️</span><span id="error-text"></span>
+      </div>
+      <div class="login-foot">
+        <div>© <span id="year"></span> WFH System · Enterprise v2.0</div>
+        <div class="nature-bar">
+          <span>Smart Factory</span><div class="nb-dot"></div>
+          <span>Manufacturing Grade</span><div class="nb-dot"></div>
+          <span>Japanese Standard</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JS -->
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+/* ── BAMBOO CANVAS BG ─────────────────────────────────────── */
+(function () {
+  var canvas = document.getElementById('bg-canvas');
+  var ctx    = canvas.getContext('2d');
+  var stalks = [], W, H, t = 0;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    stalks = [];
+    var n = Math.floor(W / 55);
+    for (var i = 0; i < n; i++) {
+      stalks.push({
+        x: Math.random() * W, w: 4 + Math.random() * 7,
+        h: H * (0.4 + Math.random() * 0.5),
+        sway: 0.012 + Math.random() * 0.018,
+        phase: Math.random() * Math.PI * 2,
+        alpha: 0.12 + Math.random() * 0.22,
+        segs: 3 + Math.floor(Math.random() * 4),
+      });
+    }
+  }
+
+  function draw(s) {
+    var lean = Math.sin(t * s.sway + s.phase) * 14;
+    var x    = s.x + lean;
+    var g    = ctx.createLinearGradient(x, H, x, H - s.h);
+    g.addColorStop(0, 'rgba(45,106,79,' + s.alpha + ')');
+    g.addColorStop(0.5, 'rgba(64,145,108,' + (s.alpha * 0.65) + ')');
+    g.addColorStop(1, 'rgba(116,198,157,0)');
+    ctx.beginPath();
+    ctx.moveTo(x, H);
+    ctx.bezierCurveTo(x + lean * 0.3, H - s.h * 0.3, x + lean * 0.5, H - s.h * 0.7, x + lean, H - s.h);
+    ctx.strokeStyle = g; ctx.lineWidth = s.w; ctx.lineCap = 'round'; ctx.stroke();
+    var sh = s.h / s.segs;
+    for (var i = 1; i < s.segs; i++) {
+      var ny = H - sh * i, nx = x + lean * (i / s.segs);
+      ctx.beginPath();
+      ctx.ellipse(nx, ny, s.w * 0.75, 2.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(64,145,108,' + (s.alpha * 0.55) + ')'; ctx.fill();
+    }
+  }
+
+  function frame() {
+    t++;
+    ctx.clearRect(0, 0, W, H);
+    var bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#071C10'); bg.addColorStop(0.5, '#0F2B1E'); bg.addColorStop(1, '#071C10');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    stalks.forEach(draw);
+    var mist = ctx.createLinearGradient(0, H * 0.7, 0, H);
+    mist.addColorStop(0, 'rgba(10,46,28,0)'); mist.addColorStop(1, 'rgba(5,20,12,0.8)');
+    ctx.fillStyle = mist; ctx.fillRect(0, H * 0.7, W, H);
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('resize', resize);
+  resize(); frame();
+})();
+
+/* ── INIT ─────────────────────────────────────────────────── */
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// Splash
+setTimeout(function () {
+  var s = document.getElementById('splash');
+  s.style.transition = 'opacity 0.8s ease';
+  s.style.opacity = '0';
+  setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 850);
+}, 2800);
+
+// Redirect jika sudah login
+var _existingUser = Session.load();
+if (_existingUser) {
+  navigateTo(_existingUser.isAdmin ? 'dashboard' : 'absensi');
+}
+
+// Restore remembered NIK
+var _savedNIK = localStorage.getItem('wfh_nik');
+if (_savedNIK) {
+  document.getElementById('nik-input').value = _savedNIK;
+  document.getElementById('remember-me').checked = true;
+}
+
+// Enter key
+document.getElementById('nik-input').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') doLogin();
+});
+
+/* ── LOGIN ────────────────────────────────────────────────── */
+async function doLogin() {
+  var nik        = document.getElementById('nik-input').value.trim();
+  var remember   = document.getElementById('remember-me').checked;
+  var btn        = document.getElementById('login-btn');
+  var spinner    = document.getElementById('login-spinner');
+  var loginText  = document.getElementById('login-text');
+  var errorBox   = document.getElementById('error-box');
+  var errorText  = document.getElementById('error-text');
+
+  // Validasi
+  if (!nik) { showErr('NIK tidak boleh kosong.'); return; }
+  if (nik.length < 3) { showErr('NIK terlalu pendek.'); return; }
+  if (!/^[a-zA-Z0-9]+$/.test(nik)) { showErr('NIK hanya boleh berisi angka dan huruf.'); return; }
+
+  // UI state
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  loginText.textContent = 'MEMVERIFIKASI...';
+  errorBox.style.display = 'none';
+
+  // Remember me
+  if (remember) { localStorage.setItem('wfh_remember', '1'); localStorage.setItem('wfh_nik', nik); }
+  else          { localStorage.removeItem('wfh_remember'); localStorage.removeItem('wfh_nik'); }
+
+  try {
+    var result = await API.loginUser(nik);
+
+    if (result.success) {
+      Session.save(result.user);
+      loginText.textContent = '✓ BERHASIL';
+      Toast.success('Login berhasil! Selamat datang, ' + result.user.nama + '.');
+      setTimeout(function () {
+        navigateTo(result.user.isAdmin ? 'dashboard' : 'absensi');
+      }, 700);
+    } else {
+      showErr(result.message || 'Login gagal.');
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      loginText.textContent = 'LOGIN';
+    }
+  } catch (err) {
+    showErr('Koneksi ke server gagal. Cek URL GAS di config.js.');
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    loginText.textContent = 'LOGIN';
+    console.error('Login error:', err);
+  }
+}
+
+function showErr(msg) {
+  var box  = document.getElementById('error-box');
+  var text = document.getElementById('error-text');
+  text.textContent = msg;
+  box.style.display = 'flex';
+  var card = document.getElementById('login-card');
+  card.style.animation = 'shake 0.4s ease';
+  setTimeout(function () { card.style.animation = ''; }, 450);
+}
+</script>
+</body>
+</html>

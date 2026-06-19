@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WFH Attendance System</title>
+  <style>
+    :root { --green:#2D6A4F; --mist:#74C69D; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(160deg,#071C10 0%,#0F2B1E 50%,#1B4332 100%);
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .splash { text-align: center; color: white; }
+    .icon { font-size: 3rem; margin-bottom: 16px; }
+    .title { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.15em; margin-bottom: 8px; }
+    .sub { font-size: 0.75rem; letter-spacing: 0.2em; color: var(--mist); text-transform: uppercase; margin-bottom: 24px; }
+    .bar { width: 160px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin: 0 auto; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--mist)); border-radius: 10px; animation: load 1.4s ease-in-out forwards; width: 0; }
+    @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="splash">
+    <div class="icon">🏭</div>
+    <div class="title">WFH ATTENDANCE SYSTEM</div>
+    <div class="sub">在宅勤務 · Smart Manufacturing</div>
+    <div class="bar"><div class="bar-fill"></div></div>
+  </div>
+
+  <script>
+    (function () {
+      var KEY = 'wfh_session';
+      var raw = sessionStorage.getItem(KEY) || localStorage.getItem(KEY);
+      var base = window.location.href.replace(/index\.html?$/, '').replace(/\/$/, '/') ;
+
+      function go(page) { window.location.href = base + page + '.html'; }
+
+      if (raw) {
+        try {
+          var s = JSON.parse(raw);
+          var TIMEOUT = 8 * 60 * 60 * 1000;
+          if (Date.now() - s.savedAt < TIMEOUT) {
+            setTimeout(function () { go(s.isAdmin ? 'dashboard' : 'absensi'); }, 1300);
+            return;
+          }
+        } catch (e) {}
+      }
+      setTimeout(function () { go('login'); }, 1300);
+    })();
+  </script>
+</body>
+</html>
