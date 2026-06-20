@@ -378,7 +378,8 @@ async function loadTodayStatus() {
       }).join('');
     }
   } catch (e) {
-    row.innerHTML = '<span style="font-size:0.8rem;color:var(--clr-gray-500);">Gagal memuat status. Cek koneksi API.</span>';
+    row.innerHTML = '<span style="font-size:0.8rem;color:var(--clr-danger);">Gagal memuat status: ' + esc(e.message) + '</span>';
+    console.error('loadTodayStatus error:', e);
   }
 }
 

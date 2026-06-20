@@ -317,7 +317,7 @@ async function doLogin() {
       loginText.textContent = 'LOGIN';
     }
   } catch (err) {
-    showErr('Koneksi ke server gagal. Cek URL GAS di config.js.');
+    showErr(err.message || 'Koneksi ke server gagal. Cek URL GAS di config.js.');
     btn.disabled = false;
     spinner.style.display = 'none';
     loginText.textContent = 'LOGIN';

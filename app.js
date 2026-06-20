@@ -7,42 +7,126 @@
  */
 
 /* ============================================================
+   JSONP HELPER
+   Memuat data dari GAS lewat tag <script> — TIDAK melalui fetch(),
+   sehingga sepenuhnya menghindari CORS. Ini dibutuhkan karena
+   fetch() cross-origin ke GAS Web App sering terblokir CORS akibat
+   redirect internal script.google.com -> script.googleusercontent.com,
+   meskipun endpoint-nya valid saat dibuka langsung di browser.
+   ============================================================ */
+let _jsonpCounter = 0;
+
+function jsonpRequest(baseUrl, params, timeoutMs) {
+  timeoutMs = timeoutMs || 15000;
+  return new Promise(function (resolve, reject) {
+    _jsonpCounter++;
+    var cbName = '_wfh_jsonp_cb_' + Date.now() + '_' + _jsonpCounter;
+    var script = document.createElement('script');
+    var timer;
+
+    function cleanup() {
+      clearTimeout(timer);
+      try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = function (data) {
+      cleanup();
+      resolve(data);
+    };
+
+    timer = setTimeout(function () {
+      cleanup();
+      reject(new Error('Request timeout — server tidak merespons dalam ' + (timeoutMs/1000) + 's.'));
+    }, timeoutMs);
+
+    var qs = [];
+    Object.keys(params || {}).forEach(function (k) {
+      var v = params[k];
+      if (v !== undefined && v !== null && v !== '') {
+        qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(v));
+      }
+    });
+    qs.push('callback=' + cbName);
+
+    var sep = baseUrl.indexOf('?') === -1 ? '?' : '&';
+    script.src = baseUrl + sep + qs.join('&');
+    script.onerror = function () {
+      cleanup();
+      reject(new Error('Gagal memuat script dari GAS. Cek URL di config.js (harus diakhiri /exec) dan koneksi internet.'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+/* ============================================================
    GAS REST API WRAPPER
    Menggantikan google.script.run sepenuhnya
    ============================================================ */
 const API = {
   /**
-   * GET request → untuk operasi baca (login, dashboard, filter, histori)
+   * Validasi konfigurasi URL sebelum request apapun
    */
-  async get(action, params = {}) {
-    const url  = new URL(window.GAS_URL);
-    url.searchParams.set('action', action);
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== '') {
-        url.searchParams.set(k, v);
-      }
-    });
-    const res = await fetch(url.toString(), { method: 'GET' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+  _checkUrl() {
+    if (!window.GAS_URL || typeof window.GAS_URL !== 'string') {
+      throw new Error('GAS_URL tidak terdefinisi. Cek apakah js/config.js berhasil dimuat (lihat tab Network di DevTools).');
+    }
+    if (window.GAS_URL.indexOf('PASTE_WEB_APP_URL') !== -1) {
+      throw new Error('URL GAS di config.js masih placeholder. Ganti dengan Web App URL asli yang diakhiri /exec.');
+    }
+    if (window.GAS_URL.indexOf('/exec') === -1) {
+      throw new Error('URL GAS di config.js harus diakhiri "/exec" (bukan "/dev" atau lainnya).');
+    }
   },
 
   /**
-   * POST request → untuk operasi tulis (simpan absensi)
-   * Menggunakan application/x-www-form-urlencoded agar tidak
-   * membutuhkan CORS preflight (OPTIONS) — langsung diterima GAS
+   * GET request → untuk operasi baca (login, dashboard, filter, histori)
+   * Menggunakan JSONP (script tag) — bukan fetch() — supaya tidak terkena CORS.
+   */
+  async get(action, params = {}) {
+    this._checkUrl();
+    var allParams = Object.assign({ action: action }, params);
+    var result = await jsonpRequest(window.GAS_URL, allParams);
+    if (!result || typeof result !== 'object') {
+      throw new Error('Respon server tidak valid.');
+    }
+    return result;
+  },
+
+  /**
+   * POST request → untuk operasi tulis (simpan absensi, ada foto base64)
+   * JSONP tidak bisa membawa payload besar, jadi tetap pakai fetch()
+   * dengan Content-Type sederhana (x-www-form-urlencoded) supaya
+   * dikirim sebagai "simple request" tanpa CORS preflight.
    */
   async post(action, data = {}) {
+    this._checkUrl();
     const form = new URLSearchParams();
     form.append('action', action);
     form.append('payload', JSON.stringify(data));
-    const res = await fetch(window.GAS_URL, {
-      method : 'POST',
-      body   : form,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+
+    let res;
+    try {
+      res = await fetch(window.GAS_URL, {
+        method : 'POST',
+        body   : form,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        redirect: 'follow',
+      });
+    } catch (networkErr) {
+      // Fetch gagal total (CORS terblokir / tidak ada koneksi)
+      throw new Error('Gagal terhubung ke server (kemungkinan CORS atau koneksi). Detail: ' + networkErr.message);
+    }
+
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (parseErr) {
+      throw new Error('Server tidak mengembalikan JSON yang valid. Kemungkinan deployment GAS bermasalah. Cuplikan respon: ' + text.substring(0, 150));
+    }
+    if (!res.ok && !json) throw new Error('HTTP ' + res.status);
+    return json;
   },
 
   /**
@@ -94,6 +178,13 @@ const API = {
    */
   async getHistoriKaryawan(nik) {
     return this.get('histori', { nik });
+  },
+
+  /**
+   * Self-test koneksi ke GAS — dipakai untuk diagnosis cepat
+   */
+  async ping() {
+    return this.get('ping');
   },
 };
 
